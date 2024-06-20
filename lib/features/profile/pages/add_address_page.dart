@@ -3,6 +3,7 @@
 import 'dart:developer';
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:permission_handler/permission_handler.dart';
 // import 'package:url_launcher/url_launcher_string.dart';
 
 // import 'package:flutter/services.dart';
@@ -33,53 +34,7 @@ class AddAddressPage extends StatefulWidget {
 }
 
 class _AddAddressPageState extends State<AddAddressPage> {
-  String locationMessage = 'Current Location of the User';
-  late String lat;
-  late String long;
-
-  Future<Position> _getCurrentLocation() async {
-    bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
-
-    if (!serviceEnabled) {
-      return Future.error('Location services are disabled');
-    }
-
-    LocationPermission permission = await Geolocator.checkPermission();
-    if (permission == LocationPermission.denied) {
-      return Future.error('Location permission are denied');
-    }
-
-    if (permission == LocationPermission.deniedForever) {
-      return Future.error(
-          'Location permission are Permanently denied, we cannot request');
-    }
-
-    return await Geolocator.getCurrentPosition();
-  }
-
-  void _liveLocation() {
-    LocationSettings locationSettings = LocationSettings(
-      accuracy: LocationAccuracy.high,
-      distanceFilter: 100,
-    );
-
-    Geolocator.getPositionStream(locationSettings: locationSettings)
-        .listen((Position position) {
-      lat = position.latitude.toString();
-      long = position.longitude.toString();
-    });
-    setState(() {
-      locationMessage = 'Latitude: $lat , Longitude: $long';
-    });
-  }
-
-  Future<void> _openMap(String lat, String long) async {
-    String googleURL =
-        'https://www.google.com/maps/search/?api=1&query=$lat,$long';
-    await canLaunchUrlString(googleURL)
-        ? await launchUrlString(googleURL)
-        : throw 'Could not launch $googleURL';
-  }
+  
 
   final _formKey = GlobalKey<FormState>(); // Create a GlobalKey
 
@@ -96,7 +51,9 @@ class _AddAddressPageState extends State<AddAddressPage> {
     super.initState();
     log('User Id is......');
     log(widget.userId);
-    // _checkLocationPermission();
+    _checkLocationPermission().whenComplete((){
+      getCurrentLocation();
+    });
   }
 
   @override
@@ -213,49 +170,41 @@ class _AddAddressPageState extends State<AddAddressPage> {
             // 
             // 
 
-             const SizedBox(
-              height: 20,
-            ),
-            Text(
-              locationMessage,
-              textAlign: TextAlign.center,
-            ),
+            //  const SizedBox(
+            //   height: 20,
+            // ),
+            // Text(
+            //   locationMessage,
+            //   textAlign: TextAlign.center,
+            // ),
 
-            const SizedBox(
-              height: 20,
-            ),
-            ElevatedButton(
-                // style: ButtonStyle(
-                // backgroundColor: MaterialStateProperty.all(Colors.blue)
-                // ),
-                onPressed: () {
-                  _getCurrentLocation().then((value) {
-                    // print(value.latitude);
-                    setState(() {
-                      lat = value.latitude.toString();
-                      long = value.longitude.toString();
-                      locationMessage = 'Latitude: $lat , Longitude: $long';
-                    });
-                    _liveLocation();
-                    // lat = '${value.latitude}';
-                    // long = '${value.longitude}';
-                  });
-                  // setState(() {
-                  //   locationMessage = 'Latitude: $lat , Longitude: $long';
-                  // });
-                },
-                child: const Text(
-                  "Get Current Location",
-                  style: TextStyle(color: Colors.black),
-                )),
-            const SizedBox(
-              height: 20,
-            ),
-            ElevatedButton(
-                onPressed: () {
-                  _openMap(lat, long);
-                },
-                child: Text('Open Google Map')),
+            // const SizedBox(
+            //   height: 20,
+            // ),
+            // ElevatedButton(
+            //     // style: ButtonStyle(
+            //     // backgroundColor: MaterialStateProperty.all(Colors.blue)
+            //     // ),
+            //     onPressed: () {
+            //       _checkLocationPermission();
+                
+            //       // setState(() {
+            //       //   locationMessage = 'Latitude: $lat , Longitude: $long';
+            //       // });
+            //     },
+            //     child: const Text(
+            //       "Get Current Location",
+            //       style: TextStyle(color: Colors.black),
+            //     )),
+            // const SizedBox(
+            //   height: 20,
+            // ),
+            // ElevatedButton(
+            //     onPressed: () {
+            //       // _checkLocationPermission();
+            //       // _openMap(lat, long);
+            //     },
+            //     child: Text('Open Google Map')),
             //
 
             isLocationFetching
@@ -505,57 +454,58 @@ class _AddAddressPageState extends State<AddAddressPage> {
   //   }
   // }
 
-  // Future<void> _checkLocationPermission() async {
-  //   PermissionStatus status = await Permission.location.status;
-  //   if (status.isDenied) {
-  //     // Request permission if denied
-  //     status = await Permission.location.request();
-  //   }
+  Future<void> _checkLocationPermission() async {
+    PermissionStatus status = await Permission.location.status;
+    if (status.isDenied) {
+      // Request permission if denied
+      status = await Permission.location.request();
+    }
 
-  //   if (status.isGranted) {
-  //     // Permission granted, proceed with location access
-  //     print('Location permission granted');
-  //   } else if (status.isPermanentlyDenied) {
-  //     // Handle permanently denied permission (e.g., open app settings)
-  //     print('Location permission permanently denied');
-  //     await openAppSettings();
-  //   } else {
-  //     // Handle other permission statuses (e.g., undetermined)
-  //     print('Location permission status: $status');
-  //   }
-  // }
+    if (status.isGranted) {
+      // Permission granted, proceed with location access
+      print('Location permission granted');
+      
+    } else if (status.isPermanentlyDenied) {
+      // Handle permanently denied permission (e.g., open app settings)
+      print('Location permission permanently denied');
+      await openAppSettings();
+    } else {
+      // Handle other permission statuses (e.g., undetermined)
+      print('Location permission status: $status');
+    }
+  }
 
-  // void getCurrentLocation() async {
-  //   var status = await Permission.location.status;
-  //   setState(() {
-  //     isLocationFetching = true;
-  //   });
-  //   try {
-  //     if (status.isGranted) {
-  //       Position position = await Geolocator.getCurrentPosition(
-  //         desiredAccuracy: LocationAccuracy.high,
-  //       );
-  //       latitude = position.latitude;
-  //       longitude = position.longitude;
-  //       setState(() {
-  //         isLocationFetching = false;
-  //       });
+  void getCurrentLocation() async {
+    var status = await Permission.location.status;
+    setState(() {
+      isLocationFetching = true;
+    });
+    try {
+      if (status.isGranted) {
+        Position position = await Geolocator.getCurrentPosition(
+          desiredAccuracy: LocationAccuracy.high,
+        );
+        latitude = position.latitude;
+        longitude = position.longitude;
+        setState(() {
+          isLocationFetching = false;
+        });
 
-  //       print('Latitude: $latitude, Longitude: $longitude');
-  //     } else if (status.isDenied) {
-  //       setState(() {
-  //         isLocationFetching = false;
-  //       });
-  //       var result = await Permission.location.request();
-  //       if (result.isGranted) {
-  //         getCurrentLocation();
-  //       } else {}
-  //     } else {}
-  //   } catch (e) {
-  //     setState(() {
-  //       isLocationFetching = false;
-  //     });
-  //     print("error $e");
-  //   }
-  // }
+        print('Latitude: $latitude, Longitude: $longitude');
+      } else if (status.isDenied) {
+        setState(() {
+          isLocationFetching = false;
+        });
+        var result = await Permission.location.request();
+        if (result.isGranted) {
+          getCurrentLocation();
+        } else {}
+      } else {}
+    } catch (e) {
+      setState(() {
+        isLocationFetching = false;
+      });
+      print("error $e");
+    }
+  }
 }
